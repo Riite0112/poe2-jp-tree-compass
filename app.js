@@ -90,6 +90,45 @@ const regions = [
 
 let activeCategory = "すべて";
 
+const treeState = {
+  mode: "simple",
+  data: null,
+  nodes: [],
+  nodeById: new Map(),
+  startNodeIds: new Set(),
+  highlightedIds: new Set(),
+  selectedNodeId: null,
+  viewBox: null,
+  fullViewBox: null,
+  detailLoaded: false,
+  detailLoading: false,
+  panStart: null
+};
+
+const classStartNodeByClass = {
+  Marauder: "47175",
+  Warrior: "47175",
+  Ranger: "50459",
+  Huntress: "50459",
+  Witch: "54447",
+  Sorceress: "54447",
+  Duelist: "50986",
+  Mercenary: "50986",
+  Shadow: "44683",
+  Monk: "44683",
+  Templar: "61525",
+  Druid: "61525"
+};
+
+const classStartLabels = {
+  "47175": "Marauder / Warrior",
+  "50459": "Ranger / Huntress",
+  "54447": "Witch / Sorceress",
+  "50986": "Duelist / Mercenary",
+  "44683": "Shadow / Monk",
+  "61525": "Templar / Druid"
+};
+
 const els = {
   termSearch: document.querySelector("#term-search"),
   clearSearch: document.querySelector("#clear-search"),
@@ -101,6 +140,17 @@ const els = {
   goalSelect: document.querySelector("#goal-select"),
   pointSlider: document.querySelector("#point-slider"),
   pointBudget: document.querySelector("#point-budget"),
+  treeTitle: document.querySelector("#tree-title"),
+  treeVisual: document.querySelector("#tree-visual"),
+  simpleMode: document.querySelector("#simple-mode"),
+  detailMode: document.querySelector("#detail-mode"),
+  detailControls: document.querySelector("#detail-controls"),
+  nodeSearch: document.querySelector("#node-search"),
+  focusClass: document.querySelector("#focus-class"),
+  resetTreeView: document.querySelector("#reset-tree-view"),
+  zoomIn: document.querySelector("#zoom-in"),
+  zoomOut: document.querySelector("#zoom-out"),
+  notableOnly: document.querySelector("#notable-only"),
   treeNote: document.querySelector("#tree-note"),
   recommendation: document.querySelector("#recommendation"),
   regionsLayer: document.querySelector("#regions-layer"),
@@ -133,8 +183,35 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function normalize(value) {
   return value.trim().toLowerCase();
+}
+
+function cleanStatMarkup(value) {
+  return String(value)
+    .replace(/\[([^\]|]+)\|([^\]]+)\]/g, "$2")
+    .replace(/\[([^\]]+)\]/g, "$1");
+}
+
+function translateKnownTerms(value) {
+  let text = escapeHtml(cleanStatMarkup(value));
+  const sortedTerms = [...terms].sort((a, b) => b.en.length - a.en.length);
+
+  for (const term of sortedTerms) {
+    const regex = new RegExp(`\\b${escapeRegExp(escapeHtml(term.en))}\\b`, "gi");
+    text = text.replace(regex, `<mark>${term.jp}</mark>`);
+  }
+
+  return text.replace(/\n/g, "<br>");
 }
 
 function termMatches(term, query) {
@@ -219,11 +296,263 @@ function classPosition(klass) {
   return polar(350, 280, 224, klass.angle);
 }
 
+function setTreeViewBox(viewBox) {
+  treeState.viewBox = { ...viewBox };
+  els.treeVisual.setAttribute(
+    "viewBox",
+    `${treeState.viewBox.x} ${treeState.viewBox.y} ${treeState.viewBox.width} ${treeState.viewBox.height}`
+  );
+}
+
+function paddedViewBox(data, padding = 1500) {
+  return {
+    x: data.min_x - padding,
+    y: data.min_y - padding,
+    width: data.max_x - data.min_x + padding * 2,
+    height: data.max_y - data.min_y + padding * 2
+  };
+}
+
+async function loadDetailedTree() {
+  if (treeState.detailLoaded || treeState.detailLoading) return;
+
+  treeState.detailLoading = true;
+  els.treeNote.innerHTML = "公式パッシブツリーデータを読み込み中です。";
+
+  try {
+    const response = await fetch("data/poe2-tree.json");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    treeState.data = data;
+    treeState.nodes = Object.entries(data.nodes)
+      .map(([id, node]) => ({ ...node, id: String(id) }))
+      .filter((node) => Number.isFinite(node.x) && Number.isFinite(node.y));
+    treeState.nodeById = new Map(treeState.nodes.map((node) => [node.id, node]));
+    treeState.startNodeIds = new Set(Object.values(classStartNodeByClass));
+    treeState.fullViewBox = paddedViewBox(data);
+    treeState.detailLoaded = true;
+  } catch (error) {
+    els.treeNote.innerHTML = `詳細ツリーを読み込めませんでした。ローカルHTTPサーバーから開いているか確認してください。<br><span class="tag">${escapeHtml(error.message)}</span>`;
+  } finally {
+    treeState.detailLoading = false;
+  }
+}
+
+function nodeKindClasses(node) {
+  const classesForNode = ["detail-node"];
+  const isImportant = node.isNotable || node.isKeystone || node.isJewelSocket || treeState.startNodeIds.has(node.id);
+
+  if (node.isKeystone) classesForNode.push("is-keystone");
+  else if (node.isJewelSocket) classesForNode.push("is-jewel");
+  else if (node.isNotable) classesForNode.push("is-notable");
+  else classesForNode.push("is-small");
+
+  if (treeState.startNodeIds.has(node.id)) classesForNode.push("is-start");
+  if (treeState.highlightedIds.has(node.id)) classesForNode.push("is-highlight");
+  if (treeState.selectedNodeId === node.id) classesForNode.push("is-selected");
+  if (els.notableOnly.checked && !isImportant) classesForNode.push("is-faded");
+
+  return classesForNode.join(" ");
+}
+
+function nodeRadius(node) {
+  if (treeState.startNodeIds.has(node.id)) return 230;
+  if (node.isKeystone) return 180;
+  if (node.isNotable) return 145;
+  if (node.isJewelSocket) return 150;
+  return 82;
+}
+
+function renderDetailedEdges() {
+  const path = treeState.data.edges.map((edge) => {
+    const from = treeState.nodeById.get(String(edge.from));
+    const to = treeState.nodeById.get(String(edge.to));
+    if (!from || !to) return "";
+    return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+  }).join("");
+
+  return `<path class="detail-edge" d="${path}"></path>`;
+}
+
+function renderDetailedNodes() {
+  return treeState.nodes.map((node) => (
+    `<circle class="${nodeKindClasses(node)}" data-node-id="${node.id}" cx="${node.x}" cy="${node.y}" r="${nodeRadius(node)}"></circle>`
+  )).join("");
+}
+
+function renderClassStartLabels() {
+  if (!treeState.viewBox || treeState.viewBox.width > 12000) return "";
+
+  return Object.entries(classStartLabels).map(([id, label]) => {
+    const node = treeState.nodeById.get(id);
+    if (!node) return "";
+    return `<text class="class-start-label" x="${node.x}" y="${node.y - 390}">${escapeHtml(label)}</text>`;
+  }).join("");
+}
+
+function drawDetailedTree() {
+  if (!treeState.detailLoaded) return;
+
+  els.treeVisual.classList.add("is-detail");
+  els.linksLayer.innerHTML = renderDetailedEdges();
+  els.regionsLayer.innerHTML = renderDetailedNodes();
+  els.classLayer.innerHTML = renderClassStartLabels();
+  els.routeLayer.innerHTML = "";
+
+  if (!treeState.viewBox) {
+    setTreeViewBox(treeState.fullViewBox);
+  } else {
+    setTreeViewBox(treeState.viewBox);
+  }
+}
+
+function resetDetailedView() {
+  if (!treeState.fullViewBox) return;
+  setTreeViewBox(treeState.fullViewBox);
+}
+
+function zoomDetailed(factor) {
+  if (!treeState.viewBox) return;
+  const nextWidth = treeState.viewBox.width * factor;
+  const nextHeight = treeState.viewBox.height * factor;
+  const centerX = treeState.viewBox.x + treeState.viewBox.width / 2;
+  const centerY = treeState.viewBox.y + treeState.viewBox.height / 2;
+
+  setTreeViewBox({
+    x: centerX - nextWidth / 2,
+    y: centerY - nextHeight / 2,
+    width: nextWidth,
+    height: nextHeight
+  });
+}
+
+function focusViewOnNode(node, width = 6200) {
+  const wrap = els.treeVisual.getBoundingClientRect();
+  const aspect = wrap.height > 0 ? wrap.width / wrap.height : 1.24;
+  const height = width / aspect;
+  setTreeViewBox({
+    x: node.x - width / 2,
+    y: node.y - height / 2,
+    width,
+    height
+  });
+}
+
+function focusSelectedClass() {
+  const startId = classStartNodeByClass[els.classSelect.value];
+  const node = treeState.nodeById.get(startId);
+  if (!node) return;
+  treeState.selectedNodeId = startId;
+  treeState.highlightedIds = new Set([startId]);
+  focusViewOnNode(node, 7600);
+  drawDetailedTree();
+  renderDetailedNote();
+}
+
+function searchDetailedNodes({ focusFirst = true } = {}) {
+  if (!treeState.detailLoaded) return;
+
+  const query = normalize(els.nodeSearch.value);
+  treeState.highlightedIds.clear();
+
+  if (query.length >= 2) {
+    for (const node of treeState.nodes) {
+      const haystack = normalize(`${node.name || ""} ${(node.stats || []).join(" ")}`);
+      if (haystack.includes(query)) treeState.highlightedIds.add(node.id);
+    }
+  }
+
+  if (focusFirst && treeState.highlightedIds.size > 0) {
+    const firstId = [...treeState.highlightedIds][0];
+    const node = treeState.nodeById.get(firstId);
+    treeState.selectedNodeId = firstId;
+    if (node) focusViewOnNode(node, 5200);
+  }
+
+  drawDetailedTree();
+  renderDetailedNote();
+}
+
+function nodeBadges(node) {
+  const badges = [];
+  if (treeState.startNodeIds.has(node.id)) badges.push("Class start");
+  if (node.isKeystone) badges.push("Keystone");
+  if (node.isNotable) badges.push("Notable");
+  if (node.isJewelSocket) badges.push("Jewel Socket");
+  if (node.isAscendancyStart) badges.push("Ascendancy");
+  if (!badges.length) badges.push("Small Passive");
+  return badges;
+}
+
+function renderDetailedNote() {
+  if (!treeState.detailLoaded) return;
+
+  const selectedNode = treeState.nodeById.get(treeState.selectedNodeId);
+  if (!selectedNode) {
+    const matchCount = treeState.highlightedIds.size;
+    els.treeNote.innerHTML = `<strong>詳細ツリー</strong><br>GGG公式データから ${treeState.nodes.length.toLocaleString()} ノードを表示しています。${matchCount ? `<br>検索一致: ${matchCount.toLocaleString()}件` : ""}`;
+    return;
+  }
+
+  const name = selectedNode.name || classStartLabels[selectedNode.id] || `Node ${selectedNode.id}`;
+  const stats = selectedNode.stats && selectedNode.stats.length
+    ? selectedNode.stats.map((stat) => `<li>${translateKnownTerms(stat)}</li>`).join("")
+    : "<li>開始地点または接続用ノードです。</li>";
+
+  els.treeNote.innerHTML = `
+    <div class="node-detail">
+      <div>
+        <h3>${escapeHtml(name)}</h3>
+        <div class="node-meta">${nodeBadges(selectedNode).map((badge) => `<span>${escapeHtml(badge)}</span>`).join("")}</div>
+      </div>
+      <ul>${stats}</ul>
+    </div>
+  `;
+}
+
+function selectDetailedNode(nodeId, shouldFocus = false) {
+  const node = treeState.nodeById.get(String(nodeId));
+  if (!node) return;
+  treeState.selectedNodeId = node.id;
+  treeState.highlightedIds.add(node.id);
+  if (shouldFocus) focusViewOnNode(node, 5200);
+  drawDetailedTree();
+  renderDetailedNote();
+}
+
+async function setTreeMode(mode) {
+  treeState.mode = mode;
+  els.simpleMode.classList.toggle("is-active", mode === "simple");
+  els.detailMode.classList.toggle("is-active", mode === "detail");
+  els.detailControls.hidden = mode !== "detail";
+  els.treeTitle.textContent = mode === "detail"
+    ? "公式データの詳細ツリーを見る"
+    : "複雑なツリーを、まず6つの地域で見る";
+
+  if (mode === "detail") {
+    await loadDetailedTree();
+    if (!treeState.detailLoaded) return;
+    treeState.viewBox ??= treeState.fullViewBox;
+    drawDetailedTree();
+    renderDetailedNote();
+  } else {
+    treeState.selectedNodeId = null;
+    treeState.highlightedIds.clear();
+    els.treeVisual.classList.remove("is-detail", "is-panning");
+    els.treeVisual.setAttribute("viewBox", "0 0 700 560");
+    updateTree();
+  }
+}
+
 function drawTree() {
   const selectedClass = classes.find((klass) => klass.name === els.classSelect.value);
   const selectedGoal = goals.find((goal) => goal.id === els.goalSelect.value);
   const focusRegion = selectedGoal.target;
   const classRegion = selectedClass.attr;
+
+  els.treeVisual.classList.remove("is-detail", "is-panning");
+  els.treeVisual.setAttribute("viewBox", "0 0 700 560");
 
   els.linksLayer.innerHTML = regions.map((region) => {
     const point = regionPosition(region.id, 176);
@@ -309,12 +638,23 @@ function buildRecommendation() {
     </article>
   `).join("");
 
-  els.treeNote.innerHTML = `<strong>${selectedClass.jp} + ${selectedGoal.label}</strong><br>この線は実際のノード配置ではなく、初心者向けの読み方です。最初は「開始地点から近い中核パッシブを取り、必要に応じて防御へ戻る」と考えるとツリー全体が小さく見えます。`;
+  if (treeState.mode === "detail") {
+    renderDetailedNote();
+  } else {
+    els.treeNote.innerHTML = `<strong>${selectedClass.jp} + ${selectedGoal.label}</strong><br>この線は実際のノード配置ではなく、初心者向けの読み方です。最初は「開始地点から近い中核パッシブを取り、必要に応じて防御へ戻る」と考えるとツリー全体が小さく見えます。`;
+  }
 }
 
 function updateTree() {
   els.pointBudget.textContent = els.pointSlider.value;
-  drawTree();
+  if (treeState.mode === "detail") {
+    if (treeState.detailLoaded) {
+      drawDetailedTree();
+      renderDetailedNote();
+    }
+  } else {
+    drawTree();
+  }
   buildRecommendation();
 }
 
@@ -337,9 +677,72 @@ function bindEvents() {
   els.classSelect.addEventListener("change", () => {
     syncGoalForClass();
     updateTree();
+    if (treeState.mode === "detail" && treeState.detailLoaded) focusSelectedClass();
   });
   els.goalSelect.addEventListener("change", updateTree);
   els.pointSlider.addEventListener("input", updateTree);
+  els.simpleMode.addEventListener("click", () => {
+    setTreeMode("simple");
+  });
+  els.detailMode.addEventListener("click", () => {
+    setTreeMode("detail");
+  });
+  els.nodeSearch.addEventListener("input", () => {
+    searchDetailedNodes({ focusFirst: false });
+  });
+  els.nodeSearch.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      searchDetailedNodes({ focusFirst: true });
+    }
+  });
+  els.focusClass.addEventListener("click", focusSelectedClass);
+  els.resetTreeView.addEventListener("click", resetDetailedView);
+  els.zoomIn.addEventListener("click", () => zoomDetailed(0.72));
+  els.zoomOut.addEventListener("click", () => zoomDetailed(1.38));
+  els.notableOnly.addEventListener("change", () => {
+    if (treeState.mode === "detail") drawDetailedTree();
+  });
+  els.treeVisual.addEventListener("click", (event) => {
+    if (treeState.mode !== "detail") return;
+    const target = event.target.closest(".detail-node");
+    if (!target) return;
+    selectDetailedNode(target.dataset.nodeId);
+  });
+  els.treeVisual.addEventListener("wheel", (event) => {
+    if (treeState.mode !== "detail") return;
+    event.preventDefault();
+    zoomDetailed(event.deltaY > 0 ? 1.16 : 0.86);
+  }, { passive: false });
+  els.treeVisual.addEventListener("pointerdown", (event) => {
+    if (treeState.mode !== "detail" || event.target.closest(".detail-node")) return;
+    els.treeVisual.setPointerCapture(event.pointerId);
+    els.treeVisual.classList.add("is-panning");
+    treeState.panStart = {
+      x: event.clientX,
+      y: event.clientY,
+      viewBox: { ...treeState.viewBox }
+    };
+  });
+  els.treeVisual.addEventListener("pointermove", (event) => {
+    if (!treeState.panStart || treeState.mode !== "detail") return;
+    const rect = els.treeVisual.getBoundingClientRect();
+    const dx = (event.clientX - treeState.panStart.x) / rect.width * treeState.panStart.viewBox.width;
+    const dy = (event.clientY - treeState.panStart.y) / rect.height * treeState.panStart.viewBox.height;
+    setTreeViewBox({
+      ...treeState.panStart.viewBox,
+      x: treeState.panStart.viewBox.x - dx,
+      y: treeState.panStart.viewBox.y - dy
+    });
+  });
+  els.treeVisual.addEventListener("pointerup", () => {
+    treeState.panStart = null;
+    els.treeVisual.classList.remove("is-panning");
+  });
+  els.treeVisual.addEventListener("pointercancel", () => {
+    treeState.panStart = null;
+    els.treeVisual.classList.remove("is-panning");
+  });
 }
 
 renderCategories();

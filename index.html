@@ -60,6 +60,11 @@
             </div>
           </div>
 
+          <div class="view-switch" role="group" aria-label="ツリー表示切替">
+            <button class="is-active" id="simple-mode" type="button">簡略</button>
+            <button id="detail-mode" type="button">詳細</button>
+          </div>
+
           <div class="controls">
             <label>
               クラス
@@ -73,6 +78,23 @@
               ポイント
               <input id="point-slider" type="range" min="10" max="100" step="10" value="20">
             </label>
+          </div>
+
+          <div class="detail-controls" id="detail-controls" hidden>
+            <label class="node-search">
+              ノード検索
+              <input id="node-search" type="search" autocomplete="off" placeholder="例: Minion, Energy Shield, Shock">
+            </label>
+            <div class="tree-actions">
+              <button id="focus-class" type="button">クラス周辺</button>
+              <button id="reset-tree-view" type="button">全体</button>
+              <button id="zoom-out" type="button" aria-label="縮小" title="縮小">−</button>
+              <button id="zoom-in" type="button" aria-label="拡大" title="拡大">＋</button>
+              <label class="toggle-control">
+                <input id="notable-only" type="checkbox">
+                <span>Notable強調</span>
+              </label>
+            </div>
           </div>
 
           <div class="tree-visual-wrap">
