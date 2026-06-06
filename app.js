@@ -79,6 +79,121 @@ const goals = [
   { id: "warcry", label: "ウォークライ", target: "Strength", focus: ["近接火力", "クールダウン", "耐久"], danger: "操作量が増えるため、よく使うキー配置も整えます。" }
 ];
 
+const buildCatalog = [
+  {
+    title: "[0.5] Pohx's Permafrost SSF Witchhunter",
+    className: "Mercenary",
+    ascendancy: "Witchhunter",
+    season: "0.5 RotA",
+    stages: ["Starter", "End Game", "SSF"],
+    updated: "2026-06-01",
+    source: "Mobalytics",
+    url: "https://mobalytics.gg/poe-2/builds/pohx-shatter-tactician",
+    goal: "freeze",
+    search: "Freeze",
+    beginner: 4,
+    summary: "凍結で安全に進めるクロスボウ型。SSF表記があり、初心者の初回リーグスターター候補にしやすいです。"
+  },
+  {
+    title: "[0.5] Lightning Spear Amazon League Starter",
+    className: "Huntress",
+    ascendancy: "Amazon",
+    season: "0.5 RotA",
+    stages: ["Starter", "End Game"],
+    updated: "2026-06-05",
+    source: "Mobalytics",
+    url: "https://mobalytics.gg/poe-2/amazon-starter-builds",
+    goal: "ranged",
+    search: "Lightning",
+    beginner: 4,
+    summary: "遠隔・雷・投射物を軸にしたスターター。ツリーでは器用さ側、命中、投射物、雷を見ます。"
+  },
+  {
+    title: "[0.5] WHIRLING Trinity Martial Artist Monk",
+    className: "Monk",
+    ascendancy: "Martial Artist",
+    season: "0.5 RotA",
+    stages: ["Starter", "End Game", "Speed Leveling"],
+    updated: "2026-06-05",
+    source: "Mobalytics",
+    url: "https://mobalytics.gg/poe-2/monk-starter-builds",
+    goal: "melee",
+    search: "Attack",
+    beginner: 3,
+    summary: "近接テンポ重視のMonk候補。操作量は少し増えますが、スターターからエンドゲームまで追いやすい枠です。"
+  },
+  {
+    title: "Hollow Assault Beyblade",
+    className: "Monk",
+    ascendancy: "Martial Artist",
+    season: "0.5 RotA",
+    stages: ["Starter", "End Game"],
+    updated: "2026-06-03",
+    source: "Mobalytics",
+    url: "https://mobalytics.gg/poe-2/builds",
+    goal: "melee",
+    search: "Melee",
+    beginner: 3,
+    summary: "Martial Artist系の人気スターター候補。詳細は必ず更新日とパッチ表記を確認してください。"
+  },
+  {
+    title: "[0.5] Comprehensive CoC Frostbolt/Spark Comet Infernalist",
+    className: "Witch",
+    ascendancy: "Infernalist",
+    season: "0.5 RotA",
+    stages: ["Starter", "End Game"],
+    updated: "2026-06-05",
+    source: "Mobalytics",
+    url: "https://mobalytics.gg/poe-2/builds",
+    goal: "spell",
+    search: "Spell",
+    beginner: 2,
+    summary: "呪文連動系で伸びしろが大きい一方、仕組みの理解が必要。2キャラ目以降にも向きます。"
+  },
+  {
+    title: "[0.5] Unlimited Hammers - Gemling",
+    className: "Mercenary",
+    ascendancy: "Gemling Legionnaire",
+    season: "0.5 RotA",
+    stages: ["End Game"],
+    updated: "2026-06-06",
+    source: "Mobalytics",
+    url: "https://mobalytics.gg/poe-2/builds",
+    goal: "projectile",
+    search: "Projectile",
+    beginner: 2,
+    summary: "更新が新しいエンドゲーム候補。装備要求や仕組みが重い可能性があるので、初心者はスターターから移行する想定で見ます。"
+  },
+  {
+    title: "[0.5] Djinn Sorceress End Game Guide",
+    className: "Sorceress",
+    ascendancy: "Disciple of Varashta",
+    season: "0.5 RotA",
+    stages: ["End Game"],
+    updated: "2026-06-05",
+    source: "Mobalytics",
+    url: "https://mobalytics.gg/poe-2/builds",
+    goal: "spell",
+    search: "Elemental",
+    beginner: 2,
+    summary: "最新環境のSorceressエンドゲーム候補。スターター適性より、完成後の方向性確認向けです。"
+  },
+  {
+    title: "0.5 Wyvern Oracle Druid League Starter",
+    className: "Druid",
+    ascendancy: "Oracle",
+    season: "0.5 RotA",
+    stages: ["Starter"],
+    updated: "2026-05-31",
+    source: "Mobalytics",
+    url: "https://mobalytics.gg/poe-2/builds/wyvern-oracle-druid-league-starter",
+    goal: "spell",
+    search: "Spell",
+    beginner: 3,
+    summary: "Druidのリーグスターター候補。Oracle固有要素が絡むため、ガイドの段階別説明を確認しながら進めます。"
+  }
+];
+
 const regions = [
   { id: "Intelligence", label: "知性", sub: "呪文・冷気・混沌・ES", angle: 90, color: "#7aa4c7" },
   { id: "Str/Int", label: "筋力/知性", sub: "神聖・召喚・耐久呪文", angle: 150, color: "#ad8bcf" },
@@ -151,6 +266,11 @@ const els = {
   zoomIn: document.querySelector("#zoom-in"),
   zoomOut: document.querySelector("#zoom-out"),
   notableOnly: document.querySelector("#notable-only"),
+  buildClassFilter: document.querySelector("#build-class-filter"),
+  buildStageFilter: document.querySelector("#build-stage-filter"),
+  buildList: document.querySelector("#build-list"),
+  refreshMeta: document.querySelector("#refresh-meta"),
+  metaStatus: document.querySelector("#meta-status"),
   treeNote: document.querySelector("#tree-note"),
   recommendation: document.querySelector("#recommendation"),
   regionsLayer: document.querySelector("#regions-layer"),
@@ -283,8 +403,118 @@ function populateSelects() {
   els.goalSelect.innerHTML = goals.map((goal) => (
     `<option value="${goal.id}">${goal.label}</option>`
   )).join("");
+  els.buildClassFilter.innerHTML = [
+    '<option value="all">すべて</option>',
+    ...classes.map((klass) => `<option value="${klass.name}">${klass.jp}</option>`)
+  ].join("");
   els.classSelect.value = "Witch";
   els.goalSelect.value = "minion";
+  els.buildClassFilter.value = "all";
+}
+
+function freshnessLabel(build) {
+  const updated = new Date(`${build.updated}T00:00:00`);
+  const days = Math.max(0, Math.round((Date.now() - updated.getTime()) / 86400000));
+  if (days <= 7) return "新しめ";
+  if (days <= 21) return "要確認";
+  return "古い可能性";
+}
+
+function buildScore(build) {
+  const selectedClass = els.classSelect.value;
+  const classFilter = els.buildClassFilter.value;
+  const stageFilter = els.buildStageFilter.value;
+  let score = build.beginner * 10;
+
+  if (build.className === selectedClass) score += 30;
+  if (classFilter !== "all" && build.className === classFilter) score += 40;
+  if (stageFilter !== "all" && build.stages.includes(stageFilter)) score += 25;
+  if (build.stages.includes("Starter")) score += 10;
+  if (build.season.includes("0.5")) score += 20;
+  return score;
+}
+
+function renderBuilds() {
+  const classFilter = els.buildClassFilter.value;
+  const stageFilter = els.buildStageFilter.value;
+  const filtered = buildCatalog
+    .filter((build) => classFilter === "all" || build.className === classFilter)
+    .filter((build) => stageFilter === "all" || build.stages.includes(stageFilter))
+    .sort((a, b) => buildScore(b) - buildScore(a));
+
+  if (!filtered.length) {
+    els.buildList.innerHTML = '<div class="meta-status">条件に合う候補がありません。クラスか用途を広げてください。</div>';
+    return;
+  }
+
+  els.buildList.innerHTML = filtered.map((build) => {
+    const klass = classes.find((item) => item.name === build.className);
+    const tags = [
+      klass?.jp || build.className,
+      build.ascendancy,
+      build.season,
+      ...build.stages,
+      freshnessLabel(build),
+      `初心者度 ${build.beginner}/5`
+    ];
+
+    return `
+      <article class="build-card">
+        <header>
+          <h3>${escapeHtml(build.title)}</h3>
+          <div class="build-tags">${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>
+        </header>
+        <p>${escapeHtml(build.summary)}</p>
+        <div class="build-actions">
+          <button type="button" data-build-index="${buildCatalog.indexOf(build)}">このビルドで見る</button>
+          <a href="${escapeHtml(build.url)}" target="_blank" rel="noreferrer">${escapeHtml(build.source)}</a>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+async function applyBuild(buildIndex) {
+  const build = buildCatalog[Number(buildIndex)];
+  if (!build) return;
+
+  els.classSelect.value = build.className;
+  els.goalSelect.value = build.goal;
+  els.nodeSearch.value = build.search;
+  await setTreeMode("detail");
+  searchDetailedNodes({ focusFirst: true });
+  buildRecommendation();
+  els.metaStatus.innerHTML = `<strong>${escapeHtml(build.title)}</strong><br>${escapeHtml(build.season)} / ${escapeHtml(build.ascendancy)} を選択しました。詳細ツリーでは ${escapeHtml(build.search)} を検索しています。`;
+}
+
+async function refreshMetaSignals() {
+  els.metaStatus.textContent = "公式データとWiki更新を確認中です。";
+  const checkedAt = new Date().toLocaleString("ja-JP");
+
+  const [releaseResult, wikiResult] = await Promise.allSettled([
+    fetch("https://api.github.com/repos/grindinggear/poe2-skilltree-export/releases/latest").then((response) => response.json()),
+    fetch("https://www.poe2wiki.net/api.php?action=query&list=recentchanges&rcnamespace=0&rclimit=1&format=json&origin=*").then((response) => response.json())
+  ]);
+
+  const parts = [`確認: ${checkedAt}`];
+
+  if (releaseResult.status === "fulfilled" && releaseResult.value.tag_name) {
+    parts.push(`公式ツリー: ${releaseResult.value.tag_name} (${new Date(releaseResult.value.published_at).toLocaleDateString("ja-JP")})`);
+  } else {
+    parts.push("公式ツリー: 取得失敗");
+  }
+
+  const recent = wikiResult.status === "fulfilled"
+    ? wikiResult.value.query?.recentchanges?.[0]
+    : null;
+  if (recent) {
+    parts.push(`Wiki更新: ${recent.title} (${new Date(recent.timestamp).toLocaleString("ja-JP")})`);
+  } else {
+    parts.push("Wiki更新: 取得失敗");
+  }
+
+  parts.push("ビルド候補は出典リンク先の更新日と0.5表記を必ず確認してください。");
+  els.metaStatus.innerHTML = parts.map(escapeHtml).join("<br>");
 }
 
 function regionPosition(regionId, radius = 168) {
@@ -677,10 +907,19 @@ function bindEvents() {
   els.classSelect.addEventListener("change", () => {
     syncGoalForClass();
     updateTree();
+    renderBuilds();
     if (treeState.mode === "detail" && treeState.detailLoaded) focusSelectedClass();
   });
   els.goalSelect.addEventListener("change", updateTree);
   els.pointSlider.addEventListener("input", updateTree);
+  els.buildClassFilter.addEventListener("change", renderBuilds);
+  els.buildStageFilter.addEventListener("change", renderBuilds);
+  els.buildList.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-build-index]");
+    if (!button) return;
+    applyBuild(button.dataset.buildIndex);
+  });
+  els.refreshMeta.addEventListener("click", refreshMetaSignals);
   els.simpleMode.addEventListener("click", () => {
     setTreeMode("simple");
   });
@@ -751,3 +990,4 @@ translateText();
 populateSelects();
 bindEvents();
 updateTree();
+renderBuilds();

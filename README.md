@@ -19,6 +19,9 @@ python -m http.server 5173 --bind 127.0.0.1
 - 12クラスと目的別の簡略パッシブツリー案内
 - GGG公式JSONを使った詳細パッシブツリー表示
 - ノード検索、クラス周辺ズーム、全体表示、Notable強調、ノード効果表示
+- 0.5 RotA向けおすすめビルド候補のフィルタ表示
+- 選んだビルドからクラス・目的・詳細ツリー検索へ反映
+- 公式ツリーリリースとPoE2 Wiki直近更新の確認
 - Notable、Keystone、Travel Node など、ツリーを読むための基礎概念
 
 ## データ方針
@@ -26,7 +29,9 @@ python -m http.server 5173 --bind 127.0.0.1
 - PoE2 Wiki: https://www.poe2wiki.net/wiki/Path_of_Exile_2
 - Passive skill tree overview: https://www.poe2wiki.net/wiki/Passive_skill_tree
 - GGG official passive tree export: https://github.com/grindinggear/poe2-skilltree-export
+- Official Build Planner file format: https://www.pathofexile.com/developer/docs/game#buildplanner
+- Mobalytics PoE2 builds: https://mobalytics.gg/poe-2/builds
 
 Wiki本文は Creative Commons Attribution-NonCommercial 3.0 Unported の表示に従う必要があります。アプリ内に長い本文コピーを持たせず、独自の短い説明と出典リンクを使う方針です。
 
-現在はGGG公式の `data.json` を `data/poe2-tree.json` として取り込み、ノード名・ステータス行・座標を表示しています。次の段階では、より多くのゲーム内用語を日本語辞書に追加し、実ノード効果の翻訳品質を上げます。
+現在はGGG公式の `data.json` を `data/poe2-tree.json` として取り込み、ノード名・ステータス行・座標を表示しています。ビルド候補は環境で古くなりやすいため、アプリ内の候補は「入口」として扱い、出典リンク先の更新日・シーズン表記・コメントを確認してから採用します。次の段階では、`.build` ファイルの読み込み/書き出しに対応し、ゲーム内Build Plannerへ直接渡せるようにします。

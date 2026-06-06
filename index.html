@@ -121,6 +121,39 @@
 
           <div class="recommendation" id="recommendation"></div>
 
+          <section class="build-finder" aria-labelledby="build-title">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Builds</p>
+                <h2 id="build-title">おすすめビルドを選ぶ</h2>
+              </div>
+              <button id="refresh-meta" type="button">最新確認</button>
+            </div>
+
+            <div class="meta-status" id="meta-status">
+              0.5 RotA向けの候補を表示中。最新確認で公式ツリー更新とWiki更新を見ます。
+            </div>
+
+            <div class="build-controls">
+              <label>
+                クラス
+                <select id="build-class-filter"></select>
+              </label>
+              <label>
+                用途
+                <select id="build-stage-filter">
+                  <option value="all">すべて</option>
+                  <option value="Starter">Starter</option>
+                  <option value="End Game">End Game</option>
+                  <option value="Speed Leveling">Speed Leveling</option>
+                  <option value="SSF">SSF</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="build-list" id="build-list"></div>
+          </section>
+
           <div class="concept-grid">
             <article>
               <strong>Travel Node</strong>
