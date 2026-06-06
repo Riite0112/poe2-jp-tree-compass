@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PoE2 JP Tree Compass</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Path of Exile 2 beginner tool</p>
+          <h1>PoE2 日本語ツリーコンパス</h1>
+        </div>
+        <nav class="source-links" aria-label="情報源">
+          <a href="https://www.poe2wiki.net/wiki/Path_of_Exile_2" target="_blank" rel="noreferrer">PoE2 Wiki</a>
+          <a href="https://www.poe2wiki.net/wiki/Passive_skill_tree" target="_blank" rel="noreferrer">Passive Tree</a>
+          <a href="https://github.com/grindinggear/poe2-skilltree-export" target="_blank" rel="noreferrer">GGG JSON</a>
+        </nav>
+      </header>
+
+      <main class="workspace">
+        <section class="panel translate-panel" aria-labelledby="translate-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Translate</p>
+              <h2 id="translate-title">英語表記を日本語で読む</h2>
+            </div>
+            <button class="icon-button" id="clear-search" type="button" aria-label="検索を消す" title="検索を消す">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          <label class="search-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"/></svg>
+            <input id="term-search" type="search" autocomplete="off" placeholder="例: Critical Damage Bonus, Energy Shield, passive">
+          </label>
+
+          <label class="text-tool">
+            <span>効果文を貼る</span>
+            <textarea id="stat-input" rows="4" placeholder="例: Hits against you have 12% reduced Critical Damage Bonus"></textarea>
+          </label>
+
+          <div class="translation-output" id="translation-output" aria-live="polite"></div>
+
+          <div class="chip-row" id="category-filter" aria-label="カテゴリで絞り込み"></div>
+          <div class="term-list" id="term-list"></div>
+        </section>
+
+        <section class="tree-stage" aria-labelledby="tree-title">
+          <div class="stage-header">
+            <div>
+              <p class="eyebrow">Passive tree</p>
+              <h2 id="tree-title">複雑なツリーを、まず6つの地域で見る</h2>
+            </div>
+            <div class="metric">
+              <span id="point-budget">20</span>
+              <small>想定ポイント</small>
+            </div>
+          </div>
+
+          <div class="controls">
+            <label>
+              クラス
+              <select id="class-select"></select>
+            </label>
+            <label>
+              目的
+              <select id="goal-select"></select>
+            </label>
+            <label>
+              ポイント
+              <input id="point-slider" type="range" min="10" max="100" step="10" value="20">
+            </label>
+          </div>
+
+          <div class="tree-visual-wrap">
+            <svg class="tree-visual" id="tree-visual" viewBox="0 0 700 560" role="img" aria-labelledby="tree-map-title tree-map-desc">
+              <title id="tree-map-title">PoE2パッシブツリーの簡略マップ</title>
+              <desc id="tree-map-desc">Strength, Dexterity, Intelligence とハイブリッド地域を円形に分けた初心者向けの概念図です。</desc>
+              <g id="links-layer"></g>
+              <g id="regions-layer"></g>
+              <g id="class-layer"></g>
+              <g id="route-layer"></g>
+            </svg>
+          </div>
+
+          <div class="tree-note" id="tree-note"></div>
+        </section>
+
+        <aside class="panel guide-panel" aria-labelledby="guide-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Guide</p>
+              <h2 id="guide-title">次に取る理由</h2>
+            </div>
+          </div>
+
+          <div class="recommendation" id="recommendation"></div>
+
+          <div class="concept-grid">
+            <article>
+              <strong>Travel Node</strong>
+              <span>目的地までの道。属性不足を直す場所でもあります。</span>
+            </article>
+            <article>
+              <strong>Small Passive</strong>
+              <span>細かい底上げ。序盤は防御と命中が体感に出やすいです。</span>
+            </article>
+            <article>
+              <strong>Notable</strong>
+              <span>小さな塊のゴール。初心者はまずNotable単位で読むと楽です。</span>
+            </article>
+            <article>
+              <strong>Keystone</strong>
+              <span>ゲームのルールを書き換える点。強いですが欠点も読みます。</span>
+            </article>
+          </div>
+
+          <div class="sources-card">
+            <h3>データ方針</h3>
+            <p>Wiki本文はCC BY-NC 3.0の出典表示が必要です。このMVPは短い要約と独自の日本語説明を使い、実データ化はGGG公式JSONとWiki APIを分けて扱う想定です。</p>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
