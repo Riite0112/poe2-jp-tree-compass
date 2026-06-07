@@ -502,13 +502,13 @@ h3 {
   fill: none;
   stroke: rgba(151, 163, 169, 0.26);
   stroke-linecap: round;
-  stroke-width: 28;
+  pointer-events: none;
 }
 
 .detail-node {
   fill: #3c4651;
   stroke: rgba(230, 238, 232, 0.42);
-  stroke-width: 22;
+  cursor: pointer;
   transition: opacity 120ms ease;
 }
 
@@ -519,37 +519,31 @@ h3 {
 .detail-node.is-notable {
   fill: #d8a84e;
   stroke: #fff0c4;
-  stroke-width: 42;
 }
 
 .detail-node.is-keystone {
   fill: #d46d45;
   stroke: #ffe0d2;
-  stroke-width: 52;
 }
 
 .detail-node.is-jewel {
   fill: #63b7a3;
   stroke: #d8fff3;
-  stroke-width: 42;
 }
 
 .detail-node.is-start {
   fill: #11161b;
   stroke: #ffd27b;
-  stroke-width: 70;
 }
 
 .detail-node.is-highlight {
   fill: #f2e08d;
   stroke: #ffffff;
-  stroke-width: 90;
 }
 
 .detail-node.is-selected {
   fill: #ffffff;
   stroke: #d8a84e;
-  stroke-width: 110;
 }
 
 .detail-node.is-faded {
@@ -701,6 +695,12 @@ h3 {
   margin: 0;
   color: var(--ink);
   font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.source-title {
+  color: var(--muted);
+  font-size: 0.78rem;
   line-height: 1.35;
 }
 

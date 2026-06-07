@@ -81,6 +81,7 @@ const goals = [
 
 const buildCatalog = [
   {
+    jpTitle: "凍結クロスボウ Witchhunter",
     title: "[0.5] Pohx's Permafrost SSF Witchhunter",
     className: "Mercenary",
     ascendancy: "Witchhunter",
@@ -95,6 +96,7 @@ const buildCatalog = [
     summary: "凍結で安全に進めるクロスボウ型。SSF表記があり、初心者の初回リーグスターター候補にしやすいです。"
   },
   {
+    jpTitle: "雷槍 Amazon リーグスターター",
     title: "[0.5] Lightning Spear Amazon League Starter",
     className: "Huntress",
     ascendancy: "Amazon",
@@ -109,6 +111,7 @@ const buildCatalog = [
     summary: "遠隔・雷・投射物を軸にしたスターター。ツリーでは器用さ側、命中、投射物、雷を見ます。"
   },
   {
+    jpTitle: "旋回攻撃 Martial Artist Monk",
     title: "[0.5] WHIRLING Trinity Martial Artist Monk",
     className: "Monk",
     ascendancy: "Martial Artist",
@@ -123,6 +126,7 @@ const buildCatalog = [
     summary: "近接テンポ重視のMonk候補。操作量は少し増えますが、スターターからエンドゲームまで追いやすい枠です。"
   },
   {
+    jpTitle: "Hollow Assault 回転Monk",
     title: "Hollow Assault Beyblade",
     className: "Monk",
     ascendancy: "Martial Artist",
@@ -137,6 +141,7 @@ const buildCatalog = [
     summary: "Martial Artist系の人気スターター候補。詳細は必ず更新日とパッチ表記を確認してください。"
   },
   {
+    jpTitle: "CoC冷気/雷 Infernalist",
     title: "[0.5] Comprehensive CoC Frostbolt/Spark Comet Infernalist",
     className: "Witch",
     ascendancy: "Infernalist",
@@ -151,6 +156,7 @@ const buildCatalog = [
     summary: "呪文連動系で伸びしろが大きい一方、仕組みの理解が必要。2キャラ目以降にも向きます。"
   },
   {
+    jpTitle: "無限ハンマー Gemling",
     title: "[0.5] Unlimited Hammers - Gemling",
     className: "Mercenary",
     ascendancy: "Gemling Legionnaire",
@@ -165,6 +171,7 @@ const buildCatalog = [
     summary: "更新が新しいエンドゲーム候補。装備要求や仕組みが重い可能性があるので、初心者はスターターから移行する想定で見ます。"
   },
   {
+    jpTitle: "Djinn Sorceress エンドゲーム",
     title: "[0.5] Djinn Sorceress End Game Guide",
     className: "Sorceress",
     ascendancy: "Disciple of Varashta",
@@ -179,6 +186,7 @@ const buildCatalog = [
     summary: "最新環境のSorceressエンドゲーム候補。スターター適性より、完成後の方向性確認向けです。"
   },
   {
+    jpTitle: "Wyvern Oracle Druid スターター",
     title: "0.5 Wyvern Oracle Druid League Starter",
     className: "Druid",
     ascendancy: "Oracle",
@@ -461,7 +469,8 @@ function renderBuilds() {
     return `
       <article class="build-card">
         <header>
-          <h3>${escapeHtml(build.title)}</h3>
+          <h3>${escapeHtml(build.jpTitle)}</h3>
+          <div class="source-title">${escapeHtml(build.title)}</div>
           <div class="build-tags">${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>
         </header>
         <p>${escapeHtml(build.summary)}</p>
@@ -484,7 +493,7 @@ async function applyBuild(buildIndex) {
   await setTreeMode("detail");
   searchDetailedNodes({ focusFirst: true });
   buildRecommendation();
-  els.metaStatus.innerHTML = `<strong>${escapeHtml(build.title)}</strong><br>${escapeHtml(build.season)} / ${escapeHtml(build.ascendancy)} を選択しました。詳細ツリーでは ${escapeHtml(build.search)} を検索しています。`;
+  els.metaStatus.innerHTML = `<strong>${escapeHtml(build.jpTitle)}</strong><br>${escapeHtml(build.season)} / ${escapeHtml(build.ascendancy)} を選択しました。詳細ツリーでは ${escapeHtml(build.search)} を検索しています。`;
 }
 
 async function refreshMetaSignals() {
@@ -586,12 +595,63 @@ function nodeKindClasses(node) {
   return classesForNode.join(" ");
 }
 
+function detailUnitsPerPixel() {
+  const rect = els.treeVisual.getBoundingClientRect();
+  const width = rect.width || 700;
+  const viewWidth = treeState.viewBox?.width || treeState.fullViewBox?.width || 47411;
+  return viewWidth / width;
+}
+
+function detailZoomBand() {
+  const width = treeState.viewBox?.width || treeState.fullViewBox?.width || 47411;
+  if (width > 22000) return "far";
+  if (width > 9000) return "mid";
+  return "near";
+}
+
+function nodeRadiusPixels(node) {
+  const band = detailZoomBand();
+
+  if (band === "far") {
+    if (treeState.startNodeIds.has(node.id)) return 4.2;
+    if (node.isKeystone) return 3.5;
+    if (node.isNotable || node.isJewelSocket) return 3;
+    return 1.35;
+  }
+
+  if (band === "mid") {
+    if (treeState.startNodeIds.has(node.id)) return 7.2;
+    if (node.isKeystone) return 6.4;
+    if (node.isNotable || node.isJewelSocket) return 5.4;
+    return 2.6;
+  }
+
+  if (treeState.startNodeIds.has(node.id)) return 9;
+  if (node.isKeystone) return 8;
+  if (node.isNotable || node.isJewelSocket) return 6.6;
+  return 3.4;
+}
+
+function nodeStrokePixels(node) {
+  if (treeState.selectedNodeId === node.id) return 3.5;
+  if (treeState.highlightedIds.has(node.id)) return 2.4;
+  if (treeState.startNodeIds.has(node.id)) return 2.6;
+  if (node.isKeystone || node.isNotable || node.isJewelSocket) return 1.9;
+  return 1.15;
+}
+
 function nodeRadius(node) {
-  if (treeState.startNodeIds.has(node.id)) return 230;
-  if (node.isKeystone) return 180;
-  if (node.isNotable) return 145;
-  if (node.isJewelSocket) return 150;
-  return 82;
+  return nodeRadiusPixels(node) * detailUnitsPerPixel();
+}
+
+function nodeStrokeWidth(node) {
+  return nodeStrokePixels(node) * detailUnitsPerPixel();
+}
+
+function detailEdgeStrokeWidth() {
+  const band = detailZoomBand();
+  const px = band === "far" ? 0.65 : band === "mid" ? 1.05 : 1.35;
+  return px * detailUnitsPerPixel();
 }
 
 function renderDetailedEdges() {
@@ -602,12 +662,12 @@ function renderDetailedEdges() {
     return `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
   }).join("");
 
-  return `<path class="detail-edge" d="${path}"></path>`;
+  return `<path class="detail-edge" stroke-width="${detailEdgeStrokeWidth()}" d="${path}"></path>`;
 }
 
 function renderDetailedNodes() {
   return treeState.nodes.map((node) => (
-    `<circle class="${nodeKindClasses(node)}" data-node-id="${node.id}" cx="${node.x}" cy="${node.y}" r="${nodeRadius(node)}"></circle>`
+    `<circle class="${nodeKindClasses(node)}" data-node-id="${node.id}" cx="${node.x}" cy="${node.y}" r="${nodeRadius(node)}" stroke-width="${nodeStrokeWidth(node)}"></circle>`
   )).join("");
 }
 
@@ -640,6 +700,8 @@ function drawDetailedTree() {
 function resetDetailedView() {
   if (!treeState.fullViewBox) return;
   setTreeViewBox(treeState.fullViewBox);
+  drawDetailedTree();
+  renderDetailedNote();
 }
 
 function zoomDetailed(factor) {
@@ -655,6 +717,7 @@ function zoomDetailed(factor) {
     width: nextWidth,
     height: nextHeight
   });
+  drawDetailedTree();
 }
 
 function focusViewOnNode(node, width = 6200) {
