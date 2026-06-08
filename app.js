@@ -218,8 +218,12 @@ const treeState = {
   data: null,
   nodes: [],
   nodeById: new Map(),
+  adjacency: new Map(),
   startNodeIds: new Set(),
   highlightedIds: new Set(),
+  routeNodeIds: new Set(),
+  routePath: [],
+  planResults: [],
   selectedNodeId: null,
   viewBox: null,
   fullViewBox: null,
@@ -252,6 +256,30 @@ const classStartLabels = {
   "61525": "Templar / Druid"
 };
 
+const goalPlannerKeywords = {
+  melee: ["Attack", "Melee", "Physical", "Attack Speed", "Weapon", "Critical"],
+  ranged: ["Projectile", "Attack", "Accuracy", "Crossbow", "Bow", "Lightning"],
+  spell: ["Spell", "Elemental", "Cast", "Mana", "Energy Shield"],
+  minion: ["Minion", "Spirit", "Ally"],
+  tank: ["Life", "Armour", "Block", "Resistance", "Recovery", "Regeneration"],
+  evasion: ["Evasion", "Flask", "Movement", "Speed", "Recovery"],
+  freeze: ["Freeze", "Cold", "Chill", "Buildup"],
+  shock: ["Shock", "Lightning", "Electrocute"],
+  chaos: ["Chaos", "Poison", "Ailment", "Duration"],
+  projectile: ["Projectile", "Attack", "Accuracy", "Pierce"],
+  ignite: ["Ignite", "Fire", "Burn", "Ailment"],
+  warcry: ["Warcry", "Rage", "Stun", "Mace", "Attack"]
+};
+
+const issuePlannerKeywords = {
+  damage: ["Damage", "Attack Speed", "Cast Speed", "Critical", "Penetration"],
+  survivability: ["Life", "Energy Shield", "Armour", "Evasion", "Block", "Resistance", "Recovery", "Regeneration"],
+  mana: ["Mana", "Spirit", "Reservation", "Cost", "Regeneration"],
+  accuracy: ["Accuracy", "Dexterity", "Attack"],
+  clear: ["Area", "Projectile", "Speed", "Pierce", "Chain"],
+  boss: ["Damage", "Critical", "Exposure", "Penetration", "Ailment", "Duration"]
+};
+
 const els = {
   termSearch: document.querySelector("#term-search"),
   clearSearch: document.querySelector("#clear-search"),
@@ -279,6 +307,12 @@ const els = {
   buildList: document.querySelector("#build-list"),
   refreshMeta: document.querySelector("#refresh-meta"),
   metaStatus: document.querySelector("#meta-status"),
+  availablePoints: document.querySelector("#available-points"),
+  currentIssue: document.querySelector("#current-issue"),
+  respecStyle: document.querySelector("#respec-style"),
+  currentKeywords: document.querySelector("#current-keywords"),
+  runPlanner: document.querySelector("#run-planner"),
+  plannerOutput: document.querySelector("#planner-output"),
   treeNote: document.querySelector("#tree-note"),
   recommendation: document.querySelector("#recommendation"),
   regionsLayer: document.querySelector("#regions-layer"),
@@ -490,6 +524,7 @@ async function applyBuild(buildIndex) {
   els.classSelect.value = build.className;
   els.goalSelect.value = build.goal;
   els.nodeSearch.value = build.search;
+  els.currentKeywords.value = build.search;
   await setTreeMode("detail");
   searchDetailedNodes({ focusFirst: true });
   buildRecommendation();
@@ -526,6 +561,229 @@ async function refreshMetaSignals() {
   els.metaStatus.innerHTML = parts.map(escapeHtml).join("<br>");
 }
 
+function plannerKeywordList() {
+  const goalId = els.goalSelect.value;
+  const issueId = els.currentIssue.value;
+  const manual = els.currentKeywords.value
+    .split(/[,\n/]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return {
+    goal: goalPlannerKeywords[goalId] || [],
+    issue: issuePlannerKeywords[issueId] || [],
+    manual
+  };
+}
+
+function nodeSearchText(node) {
+  return `${node.name || ""} ${(node.stats || []).map(cleanStatMarkup).join(" ")}`.toLowerCase();
+}
+
+function keywordHits(text, keywords) {
+  return keywords.reduce((count, keyword) => (
+    text.includes(keyword.toLowerCase()) ? count + 1 : count
+  ), 0);
+}
+
+function respecSettings() {
+  const style = els.respecStyle.value;
+  if (style === "conservative") {
+    return {
+      label: "振り直し温存",
+      buffer: 4,
+      distancePenalty: 3.4,
+      keystonePenalty: 26,
+      note: "後で外しにくい遠回りやKeystoneは保留し、近い汎用Notableを優先します。"
+    };
+  }
+
+  if (style === "aggressive") {
+    return {
+      label: "大きく組み替え前提",
+      buffer: 20,
+      distancePenalty: 1.7,
+      keystonePenalty: -8,
+      note: "完成形に寄せるため遠い強ノードも候補に入れます。あとで不要な通過ノードを戻す前提です。"
+    };
+  }
+
+  return {
+    label: "少し振り直す",
+    buffer: 10,
+    distancePenalty: 2.35,
+    keystonePenalty: 8,
+    note: "今の強さを確保しつつ、あとで3-8ポイント程度戻す余地を残します。"
+  };
+}
+
+function scorePlannerCandidate(node, distance, keywords, settings, availablePoints) {
+  const text = nodeSearchText(node);
+  const goalHits = keywordHits(text, keywords.goal);
+  const issueHits = keywordHits(text, keywords.issue);
+  const manualHits = keywordHits(text, keywords.manual);
+  let score = 0;
+
+  score += goalHits * 30;
+  score += issueHits * 14;
+  score += manualHits * 18;
+  if (node.isNotable) score += 34;
+  if (node.isJewelSocket) score += 10;
+  if (node.isKeystone) score += 18 - settings.keystonePenalty;
+  if (distance <= availablePoints) score += 28;
+  if (distance <= availablePoints + 4) score += 12;
+  if (keywords.goal.length && goalHits === 0 && manualHits === 0) score -= 42;
+  score -= plannerRiskPenalty(text);
+  score -= distance * settings.distancePenalty;
+
+  return score;
+}
+
+function plannerRiskPenalty(text) {
+  let penalty = 0;
+  if (text.includes("you have no spirit")) penalty += 90;
+  if (text.includes("become ignited")) penalty += 36;
+  if (text.includes("you have no ")) penalty += 30;
+  if (text.includes("lose all")) penalty += 18;
+  if (text.includes("does not recharge")) penalty += 18;
+  return penalty;
+}
+
+function timingLabel(distance, availablePoints) {
+  if (distance <= availablePoints) return "今すぐ届く";
+  if (distance <= availablePoints + 6) return "少し先";
+  return "リセット後候補";
+}
+
+function makePlannerReason(node, keywords) {
+  const text = nodeSearchText(node);
+  const matched = [...new Set([...keywords.goal, ...keywords.issue, ...keywords.manual])]
+    .filter((keyword) => text.includes(keyword.toLowerCase()))
+    .slice(0, 4);
+
+  if (matched.length) return `一致: ${matched.join(" / ")}`;
+  if (node.isKeystone) return "強力ですが、欠点や前提を読んでから採用します。";
+  if (node.isJewelSocket) return "良いジュエルがある場合に価値が上がる候補です。";
+  return "開始地点から近い中核パッシブ候補です。";
+}
+
+function plannerStatsPreview(node) {
+  if (!node.stats || !node.stats.length) return "開始地点または接続用ノードです。";
+  return node.stats.slice(0, 2).map(cleanStatMarkup).join(" / ");
+}
+
+function focusViewOnRoute(path) {
+  const nodes = path.map((id) => treeState.nodeById.get(id)).filter(Boolean);
+  if (!nodes.length) return;
+
+  const minX = Math.min(...nodes.map((node) => node.x));
+  const maxX = Math.max(...nodes.map((node) => node.x));
+  const minY = Math.min(...nodes.map((node) => node.y));
+  const maxY = Math.max(...nodes.map((node) => node.y));
+  const wrap = els.treeVisual.getBoundingClientRect();
+  const aspect = wrap.height > 0 ? wrap.width / wrap.height : 1.24;
+  const routeWidth = Math.max(maxX - minX + 2500, 5200);
+  const routeHeight = Math.max(maxY - minY + 2500, routeWidth / aspect);
+  const width = Math.max(routeWidth, routeHeight * aspect);
+  const height = width / aspect;
+
+  setTreeViewBox({
+    x: (minX + maxX) / 2 - width / 2,
+    y: (minY + maxY) / 2 - height / 2,
+    width,
+    height
+  });
+}
+
+function applyPlanResult(index) {
+  const result = treeState.planResults[Number(index)];
+  if (!result) return;
+
+  treeState.routePath = result.path;
+  treeState.routeNodeIds = new Set(result.path);
+  treeState.highlightedIds = new Set(result.path);
+  treeState.selectedNodeId = result.node.id;
+  focusViewOnRoute(result.path);
+  drawDetailedTree();
+  renderDetailedNote();
+}
+
+function renderPlannerResults(results, settings, availablePoints) {
+  if (!results.length) {
+    els.plannerOutput.innerHTML = "候補が見つかりませんでした。用途や使っている要素を変えてもう一度試してください。";
+    return;
+  }
+
+  const cards = results.map((result, index) => {
+    const node = result.node;
+    const tags = [
+      `${result.distance}pt`,
+      timingLabel(result.distance, availablePoints),
+      node.isKeystone ? "Keystone" : node.isJewelSocket ? "Jewel" : "Notable",
+      `score ${Math.round(result.score)}`
+    ];
+
+    return `
+      <article class="plan-card ${index === 0 ? "is-primary" : ""}">
+        <h3>${index + 1}. ${escapeHtml(node.name || `Node ${node.id}`)}</h3>
+        <div class="plan-meta">${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>
+        <p>${escapeHtml(result.reason)}<br>${escapeHtml(plannerStatsPreview(node))}</p>
+        <button type="button" data-plan-index="${index}">ツリーに表示</button>
+      </article>
+    `;
+  }).join("");
+
+  els.plannerOutput.innerHTML = `
+    <div><strong>${escapeHtml(settings.label)}</strong><br>${escapeHtml(settings.note)}</div>
+    ${cards}
+  `;
+}
+
+async function runPassivePlanner() {
+  els.plannerOutput.textContent = "公式ツリーから候補を探索中です。";
+  await setTreeMode("detail");
+  if (!treeState.detailLoaded) return;
+
+  const startId = classStartNodeByClass[els.classSelect.value];
+  const startNode = treeState.nodeById.get(startId);
+  if (!startNode) {
+    els.plannerOutput.textContent = "このクラスの開始地点が見つかりませんでした。";
+    return;
+  }
+
+  const availablePoints = Math.max(1, Math.min(60, Number(els.availablePoints.value) || 1));
+  els.availablePoints.value = String(availablePoints);
+
+  const keywords = plannerKeywordList();
+  const settings = respecSettings();
+  const { distance, previous } = shortestPathsFrom(startId);
+  const maxDistance = availablePoints + settings.buffer;
+
+  const scored = treeState.nodes
+    .filter((node) => (node.isNotable || node.isKeystone || node.isJewelSocket) && distance.has(node.id))
+    .map((node) => {
+      const nodeDistance = distance.get(node.id);
+      const score = scorePlannerCandidate(node, nodeDistance, keywords, settings, availablePoints);
+      return {
+        node,
+        distance: nodeDistance,
+        score,
+        path: reconstructPath(previous, node.id),
+        reason: makePlannerReason(node, keywords)
+      };
+    })
+    .filter((result) => result.distance > 0 && result.distance <= maxDistance && result.score > 10)
+    .sort((a, b) => b.score - a.score || a.distance - b.distance)
+    .slice(0, 4);
+
+  treeState.planResults = scored;
+  renderPlannerResults(scored, settings, availablePoints);
+
+  if (scored[0]) {
+    applyPlanResult(0);
+  }
+}
+
 function regionPosition(regionId, radius = 168) {
   const region = regions.find((item) => item.id === regionId) || regions[0];
   return polar(350, 280, radius, region.angle);
@@ -552,6 +810,57 @@ function paddedViewBox(data, padding = 1500) {
   };
 }
 
+function buildAdjacency(data) {
+  const adjacency = new Map();
+
+  for (const id of Object.keys(data.nodes)) {
+    adjacency.set(String(id), []);
+  }
+
+  for (const edge of data.edges) {
+    const from = String(edge.from);
+    const to = String(edge.to);
+    if (!adjacency.has(from) || !adjacency.has(to)) continue;
+    adjacency.get(from).push(to);
+    adjacency.get(to).push(from);
+  }
+
+  return adjacency;
+}
+
+function shortestPathsFrom(startId) {
+  const start = String(startId);
+  const distance = new Map([[start, 0]]);
+  const previous = new Map();
+  const queue = [start];
+
+  for (let index = 0; index < queue.length; index += 1) {
+    const current = queue[index];
+    const nextNodes = treeState.adjacency.get(current) || [];
+
+    for (const next of nextNodes) {
+      if (distance.has(next)) continue;
+      distance.set(next, distance.get(current) + 1);
+      previous.set(next, current);
+      queue.push(next);
+    }
+  }
+
+  return { distance, previous };
+}
+
+function reconstructPath(previous, targetId) {
+  const path = [String(targetId)];
+  let current = String(targetId);
+
+  while (previous.has(current)) {
+    current = previous.get(current);
+    path.unshift(current);
+  }
+
+  return path;
+}
+
 async function loadDetailedTree() {
   if (treeState.detailLoaded || treeState.detailLoading) return;
 
@@ -568,6 +877,7 @@ async function loadDetailedTree() {
       .map(([id, node]) => ({ ...node, id: String(id) }))
       .filter((node) => Number.isFinite(node.x) && Number.isFinite(node.y));
     treeState.nodeById = new Map(treeState.nodes.map((node) => [node.id, node]));
+    treeState.adjacency = buildAdjacency(data);
     treeState.startNodeIds = new Set(Object.values(classStartNodeByClass));
     treeState.fullViewBox = paddedViewBox(data);
     treeState.detailLoaded = true;
@@ -588,6 +898,7 @@ function nodeKindClasses(node) {
   else classesForNode.push("is-small");
 
   if (treeState.startNodeIds.has(node.id)) classesForNode.push("is-start");
+  if (treeState.routeNodeIds.has(node.id)) classesForNode.push("is-route");
   if (treeState.highlightedIds.has(node.id)) classesForNode.push("is-highlight");
   if (treeState.selectedNodeId === node.id) classesForNode.push("is-selected");
   if (els.notableOnly.checked && !isImportant) classesForNode.push("is-faded");
@@ -681,6 +992,20 @@ function renderClassStartLabels() {
   }).join("");
 }
 
+function renderDetailedRoute() {
+  if (!treeState.routePath.length) return "";
+
+  const commands = [];
+  for (const id of treeState.routePath) {
+    const node = treeState.nodeById.get(id);
+    if (!node) continue;
+    commands.push(`${commands.length ? "L" : "M"} ${node.x} ${node.y}`);
+  }
+
+  if (commands.length < 2) return "";
+  return `<path class="detail-route" stroke-width="${3.4 * detailUnitsPerPixel()}" d="${commands.join(" ")}"></path>`;
+}
+
 function drawDetailedTree() {
   if (!treeState.detailLoaded) return;
 
@@ -688,7 +1013,7 @@ function drawDetailedTree() {
   els.linksLayer.innerHTML = renderDetailedEdges();
   els.regionsLayer.innerHTML = renderDetailedNodes();
   els.classLayer.innerHTML = renderClassStartLabels();
-  els.routeLayer.innerHTML = "";
+  els.routeLayer.innerHTML = renderDetailedRoute();
 
   if (!treeState.viewBox) {
     setTreeViewBox(treeState.fullViewBox);
@@ -738,6 +1063,8 @@ function focusSelectedClass() {
   if (!node) return;
   treeState.selectedNodeId = startId;
   treeState.highlightedIds = new Set([startId]);
+  treeState.routePath = [];
+  treeState.routeNodeIds.clear();
   focusViewOnNode(node, 7600);
   drawDetailedTree();
   renderDetailedNote();
@@ -748,6 +1075,8 @@ function searchDetailedNodes({ focusFirst = true } = {}) {
 
   const query = normalize(els.nodeSearch.value);
   treeState.highlightedIds.clear();
+  treeState.routePath = [];
+  treeState.routeNodeIds.clear();
 
   if (query.length >= 2) {
     for (const node of treeState.nodes) {
@@ -832,6 +1161,8 @@ async function setTreeMode(mode) {
   } else {
     treeState.selectedNodeId = null;
     treeState.highlightedIds.clear();
+    treeState.routePath = [];
+    treeState.routeNodeIds.clear();
     els.treeVisual.classList.remove("is-detail", "is-panning");
     els.treeVisual.setAttribute("viewBox", "0 0 700 560");
     updateTree();
@@ -983,6 +1314,12 @@ function bindEvents() {
     applyBuild(button.dataset.buildIndex);
   });
   els.refreshMeta.addEventListener("click", refreshMetaSignals);
+  els.runPlanner.addEventListener("click", runPassivePlanner);
+  els.plannerOutput.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-plan-index]");
+    if (!button) return;
+    applyPlanResult(button.dataset.planIndex);
+  });
   els.simpleMode.addEventListener("click", () => {
     setTreeMode("simple");
   });

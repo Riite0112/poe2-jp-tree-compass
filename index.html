@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PoE2 JP Tree Compass</title>
-    <link rel="stylesheet" href="styles.css?v=20260608-readability">
+    <link rel="stylesheet" href="styles.css?v=20260608-planner4">
   </head>
   <body>
     <div class="app-shell">
@@ -121,6 +121,51 @@
 
           <div class="recommendation" id="recommendation"></div>
 
+          <section class="passive-planner" aria-labelledby="planner-title">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Planner</p>
+                <h2 id="planner-title">次に振るパッシブ</h2>
+              </div>
+              <button id="run-planner" type="button">提案を作る</button>
+            </div>
+
+            <div class="planner-controls">
+              <label>
+                余りポイント
+                <input id="available-points" type="number" min="1" max="60" value="8">
+              </label>
+              <label>
+                今困っていること
+                <select id="current-issue">
+                  <option value="damage">火力不足</option>
+                  <option value="survivability">すぐ死ぬ</option>
+                  <option value="mana">マナ/スピリット不足</option>
+                  <option value="accuracy">命中・当たらない</option>
+                  <option value="clear">雑魚処理が遅い</option>
+                  <option value="boss">ボス火力不足</option>
+                </select>
+              </label>
+              <label>
+                振り直し方針
+                <select id="respec-style">
+                  <option value="conservative">温存する</option>
+                  <option value="balanced" selected>少し振り直す</option>
+                  <option value="aggressive">大きく組み替える</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="planner-keywords">
+              使っている要素
+              <input id="current-keywords" type="text" placeholder="例: Quarterstaff, Minion, Energy Shield">
+            </label>
+
+            <div class="planner-output" id="planner-output">
+              クラス・目的・余りポイントを入れて提案を作れます。
+            </div>
+          </section>
+
           <section class="build-finder" aria-labelledby="build-title">
             <div class="section-heading">
               <div>
@@ -181,6 +226,6 @@
       </main>
     </div>
 
-    <script src="app.js?v=20260608-readability"></script>
+    <script src="app.js?v=20260608-planner4"></script>
   </body>
 </html>
